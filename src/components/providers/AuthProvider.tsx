@@ -7,22 +7,45 @@ import { identifyUser } from '@/lib/posthog'
 import { auth } from '@/lib/firebase/client'
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth'
 
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
+  return match ? match[2] : null
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setLoading } = useAuthStore()
   const { setPlan } = useSubscriptionStore()
 
   useEffect(() => {
-    if (!auth) {
-      setLoading(false)
-      return
+    // First check: if we have an sb-custom-jwt cookie, fetch the profile immediately
+    // This handles the case where the user just logged in via window.location.replace
+    const existingToken = getCookie('sb-custom-jwt')
+    
+    const fetchProfileByJWT = async () => {
+      try {
+        const res = await fetch('/api/users/profile')
+        if (res.ok) {
+          const { data: profile } = await res.json()
+          if (profile) {
+            setUser(profile as any)
+            setPlan(profile.plan_type || 'free')
+            identifyUser(profile.id, {
+              email: profile.email,
+              plan: profile.plan_type,
+              name: profile.full_name,
+            })
+            setLoading(false)
+            return true
+          }
+        }
+      } catch {}
+      return false
     }
 
-    const fetchSupabaseProfile = async (firebaseUser: FirebaseUser, attempt = 0): Promise<void> => {
+    const fetchProfileByFirebase = async (firebaseUser: FirebaseUser, attempt = 0): Promise<void> => {
       try {
         const idToken = await firebaseUser.getIdToken()
-
-        // Fetch profile via our API which has privileged service-role access
-        // This bypasses RLS issues that occur on the client side
         const res = await fetch('/api/users/profile', {
           headers: { 'x-firebase-token': idToken }
         })
@@ -42,12 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Profile not found yet — retry with exponential backoff
-        // Handles the case where the user just signed up and the bridge is still creating the DB record
         if (attempt < 5) {
           const delay = Math.min(500 * Math.pow(1.5, attempt), 3000)
           await new Promise(resolve => setTimeout(resolve, delay))
-          return fetchSupabaseProfile(firebaseUser, attempt + 1)
+          return fetchProfileByFirebase(firebaseUser, attempt + 1)
         }
 
         console.warn('Could not load user profile after retries')
@@ -56,23 +77,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn('Profile fetch error:', err)
         if (attempt < 3) {
           await new Promise(resolve => setTimeout(resolve, 1000))
-          return fetchSupabaseProfile(firebaseUser, attempt + 1)
+          return fetchProfileByFirebase(firebaseUser, attempt + 1)
         }
         setLoading(false)
       }
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        await fetchSupabaseProfile(firebaseUser)
-      } else {
-        setUser(null)
-        setPlan('free')
-        setLoading(false)
-      }
-    })
+    // If we have a JWT cookie, try to fetch the profile immediately before Firebase initializes
+    if (existingToken) {
+      fetchProfileByJWT().then(success => {
+        if (success) return // Profile loaded from cookie, done!
+        
+        // Cookie exists but profile fetch failed — fall back to Firebase
+        if (!auth) { setLoading(false); return }
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            await fetchProfileByFirebase(firebaseUser)
+          } else {
+            setUser(null); setPlan('free'); setLoading(false)
+          }
+        })
+        return () => unsubscribe()
+      })
+    } else {
+      // No cookie — use Firebase auth state
+      if (!auth) { setLoading(false); return }
+      
+      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (firebaseUser) {
+          await fetchProfileByFirebase(firebaseUser)
+        } else {
+          setUser(null)
+          setPlan('free')
+          setLoading(false)
+        }
+      })
 
-    return () => unsubscribe()
+      return () => unsubscribe()
+    }
   }, [setUser, setLoading, setPlan])
 
   return <>{children}</>
