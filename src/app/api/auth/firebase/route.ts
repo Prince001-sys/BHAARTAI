@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { adminAuth } from '@/lib/firebase/admin'
+import { getAdminAuth } from '@/lib/firebase/admin'
 import { createClient } from '@supabase/supabase-js'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     }
 
     // 1. Verify Firebase Token
+    const adminAuth = getAdminAuth()
     const decodedToken = await adminAuth.verifyIdToken(idToken)
     const { uid, email, name, picture } = decodedToken
 
