@@ -33,9 +33,17 @@ function LoginForm() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken })
     })
+    
+    const data = await res.json()
+    
     if (!res.ok) {
-      const errData = await res.json()
-      throw new Error(errData.error || 'Failed to establish secure session')
+      throw new Error(data.error || 'Failed to establish secure session')
+    }
+
+    // Fallback: Manually set the cookie on the client side to guarantee it exists
+    if (data.customToken) {
+      const isSecure = window.location.protocol === 'https:' ? '; Secure' : ''
+      document.cookie = `sb-custom-jwt=${data.customToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${isSecure}`
     }
   }
 
