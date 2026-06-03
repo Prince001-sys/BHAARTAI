@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/authStore'
 import { useSubscriptionStore } from '@/store/subscriptionStore'
 import { identifyUser } from '@/lib/posthog'
@@ -18,31 +17,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    const fetchSupabaseProfile = async (firebaseUser: FirebaseUser) => {
-      // Small delay to ensure cookie is written by establishSession during initial login
-      await new Promise(resolve => setTimeout(resolve, 500))
+    const fetchSupabaseProfile = async (firebaseUser: FirebaseUser, attempt = 0): Promise<void> => {
+      try {
+        const idToken = await firebaseUser.getIdToken()
 
-      const supabase = createClient()
-      const { data: profile, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('firebase_uid', firebaseUser.uid)
-        .single()
-
-      if (profile) {
-        setUser(profile as any)
-        setPlan(profile.plan_type || 'free')
-        identifyUser(profile.id, {
-          email: profile.email,
-          plan: profile.plan_type,
-          name: profile.full_name,
+        // Fetch profile via our API which has privileged service-role access
+        // This bypasses RLS issues that occur on the client side
+        const res = await fetch('/api/users/profile', {
+          headers: { 'x-firebase-token': idToken }
         })
-      } else {
-        // If profile isn't found immediately, the login flow's establishSession might still be running.
-        // login/page.tsx will handle the redirect once establishSession finishes.
-        console.warn('Profile not yet available in Supabase')
+
+        if (res.ok) {
+          const { data: profile } = await res.json()
+          if (profile) {
+            setUser(profile as any)
+            setPlan(profile.plan_type || 'free')
+            identifyUser(profile.id, {
+              email: profile.email,
+              plan: profile.plan_type,
+              name: profile.full_name,
+            })
+            setLoading(false)
+            return
+          }
+        }
+
+        // Profile not found yet — retry with exponential backoff
+        // Handles the case where the user just signed up and the bridge is still creating the DB record
+        if (attempt < 5) {
+          const delay = Math.min(500 * Math.pow(1.5, attempt), 3000)
+          await new Promise(resolve => setTimeout(resolve, delay))
+          return fetchSupabaseProfile(firebaseUser, attempt + 1)
+        }
+
+        console.warn('Could not load user profile after retries')
+        setLoading(false)
+      } catch (err) {
+        console.warn('Profile fetch error:', err)
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          return fetchSupabaseProfile(firebaseUser, attempt + 1)
+        }
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {

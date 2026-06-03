@@ -1,13 +1,47 @@
 import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
+import { getAdminAuth } from '@/lib/firebase/admin'
+import { createServiceClient } from '@/lib/supabase/middleware'
 
 // GET /api/users/profile — fetch own profile
-export async function GET() {
+// Supports two auth modes:
+// 1. Standard: uses sb-custom-jwt cookie (via withAuth)
+// 2. Firebase token: uses x-firebase-token header (used by AuthProvider on page load)
+export async function GET(request: Request) {
+  // Check for Firebase token header first (used by AuthProvider)
+  const firebaseToken = request.headers.get('x-firebase-token')
+  
+  if (firebaseToken) {
+    try {
+      const adminAuth = getAdminAuth()
+      const decoded = await adminAuth.verifyIdToken(firebaseToken)
+      const serviceClient = createServiceClient()
+      
+      const { data: user, error } = await serviceClient
+        .from('users')
+        .select('*')
+        .eq('firebase_uid', decoded.uid)
+        .single()
+      
+      if (error || !user) {
+        return NextResponse.json({ data: null }, { status: 404 })
+      }
+      
+      return NextResponse.json({ data: user })
+    } catch (err) {
+      logger.error('[GET /users/profile firebase]', err)
+      return NextResponse.json({ data: null }, { status: 401 })
+    }
+  }
+
+  // Standard cookie-based auth
   return withAuth(async ({ user }) => {
     return NextResponse.json({ data: user })
   })
 }
+
+
 
 // PATCH /api/users/profile — update own profile
 export async function PATCH(request: Request) {
