@@ -21,7 +21,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  // Auth guard — redirect to login if not authenticated
+  // Auth guard — wait for auth to fully initialize before deciding to redirect
   useEffect(() => {
     if (!isLoading && !user) {
       router.replace('/login')
@@ -29,6 +29,7 @@ export default function DashboardPage() {
   }, [user, isLoading, router])
 
   useEffect(() => {
+    if (!user) return // Don't fetch stats until we have a user
     fetch('/api/dashboard/stats')
       .then((r) => r.json())
       .then(({ data }) => {
@@ -36,7 +37,23 @@ export default function DashboardPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [])
+  }, [user])
+
+  // Show loading spinner while auth is initializing
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+          <p className="text-white/50 text-sm">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Not logged in — redirect happens via useEffect above
+  if (!user) return null
+
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault()
