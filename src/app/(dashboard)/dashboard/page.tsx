@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
-import { useSubscriptionStore } from '@/store/subscriptionStore'
 import { formatRelativeTime } from '@/lib/utils'
 import type { DashboardStats } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -18,7 +17,6 @@ import {
 
 export default function DashboardPage() {
   const { user } = useAuthStore()
-  const { plan } = useSubscriptionStore()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -46,7 +44,7 @@ export default function DashboardPage() {
       
       toast.success("Study set deleted.")
       setStats(prev => prev ? { ...prev, recentStudySets: prev.recentStudySets.filter(s => s.id !== id) } : null)
-    } catch (err) {
+    } catch {
       toast.error("Failed to delete study set.")
     }
   }

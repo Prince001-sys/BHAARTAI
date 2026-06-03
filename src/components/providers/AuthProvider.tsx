@@ -5,93 +5,57 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/authStore'
 import { useSubscriptionStore } from '@/store/subscriptionStore'
 import { identifyUser } from '@/lib/posthog'
-import type { User } from '@/types'
-
-async function fetchOrCreateProfile(supabase: ReturnType<typeof createClient>, authUser: { id: string; email?: string; phone?: string; user_metadata?: Record<string, unknown> }): Promise<User | null> {
-  let { data: profile } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', authUser.id)
-    .single()
-
-  if (!profile) {
-    const fullName = (authUser.user_metadata?.full_name || authUser.user_metadata?.name || 'Student') as string
-    const { data: newProfile } = await supabase
-      .from('users')
-      .insert({
-        id: authUser.id,
-        email: authUser.email,
-        phone: authUser.phone,
-        full_name: fullName,
-        avatar_url: authUser.user_metadata?.avatar_url as string | undefined,
-        plan_type: 'free',
-        role: 'student',
-      })
-      .select()
-      .single()
-    if (newProfile) profile = newProfile
-  }
-
-  return profile as User | null
-}
+import { auth } from '@/lib/firebase/client'
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setLoading } = useAuthStore()
   const { setPlan } = useSubscriptionStore()
 
   useEffect(() => {
-    const supabase = createClient()
+    if (!auth) {
+      setLoading(false)
+      return
+    }
 
-    // Get initial session — always clear first to avoid stale cache
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (user) {
-        // Clear any stale persisted user before setting the fresh one
-        setUser(null)
-        const profile = await fetchOrCreateProfile(supabase, user as any)
-        if (profile) {
-          setUser(profile)
-          setPlan(profile.plan_type || 'free')
-          identifyUser(user.id, {
-            email: profile.email,
-            plan: profile.plan_type,
-            name: profile.full_name,
-          })
-        }
+    const fetchSupabaseProfile = async (firebaseUser: FirebaseUser) => {
+      // Small delay to ensure cookie is written by establishSession during initial login
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      const supabase = createClient()
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('firebase_uid', firebaseUser.uid)
+        .single()
+
+      if (profile) {
+        setUser(profile as any)
+        setPlan(profile.plan_type || 'free')
+        identifyUser(profile.id, {
+          email: profile.email,
+          plan: profile.plan_type,
+          name: profile.full_name,
+        })
+      } else {
+        // If profile isn't found immediately, the login flow's establishSession might still be running.
+        // login/page.tsx will handle the redirect once establishSession finishes.
+        console.warn('Profile not yet available in Supabase')
+      }
+      setLoading(false)
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        await fetchSupabaseProfile(firebaseUser)
       } else {
         setUser(null)
         setPlan('free')
-      }
-      setLoading(false)
-    })
-
-    // Listen for auth state changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_OUT') {
-          setUser(null)
-          setPlan('free')
-          setLoading(false)
-          return
-        }
-
-        if (session?.user) {
-          // Always clear stale user on new sign-in so old email never shows
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            setUser(null)
-          }
-
-          const profile = await fetchOrCreateProfile(supabase, session.user as any)
-          if (profile) {
-            setUser(profile)
-            setPlan(profile.plan_type || 'free')
-          }
-        }
-
         setLoading(false)
       }
-    )
+    })
 
-    return () => subscription.unsubscribe()
+    return () => unsubscribe()
   }, [setUser, setLoading, setPlan])
 
   return <>{children}</>

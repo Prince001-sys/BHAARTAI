@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
 import { chatWithAI } from '@/lib/openai'
@@ -122,7 +123,7 @@ export async function POST(
 
       return NextResponse.json({ data: aiMessage })
     } catch (err) {
-      console.error('[POST /chat/messages]', err)
+      logger.error('[POST /chat/messages]', err)
       return NextResponse.json(
         { error: 'AI service is temporarily unavailable. Please try again in a few minutes.' },
         { status: 503 }

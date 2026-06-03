@@ -4,7 +4,7 @@ import { useSubscriptionStore } from '@/store/subscriptionStore'
 import { toast } from 'sonner'
 
 export default function PricingPage() {
-  const { plan, setPlan, uploadsUsedToday, incrementUploads } = useSubscriptionStore()
+  const { plan, setPlan, uploadsUsedToday } = useSubscriptionStore()
 
   const handleUpgrade = () => {
     // Mock upgrade flow

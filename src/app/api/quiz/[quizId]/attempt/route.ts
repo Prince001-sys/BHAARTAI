@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase/middleware'
@@ -49,7 +50,7 @@ export async function POST(
       .single()
 
     if (attemptError) {
-      console.error('[POST /quiz/attempt]', attemptError)
+      logger.error('[POST /quiz/attempt]', attemptError)
       return NextResponse.json({ error: 'Failed to save attempt.' }, { status: 500 })
     }
 

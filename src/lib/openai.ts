@@ -34,9 +34,26 @@ export function getOpenAIErrorMessage(err: unknown): string {
     if (msg.includes('permission') || msg.includes('403')) {
       return 'Gemini API key does not have permission. Check your Google AI Studio key.'
     }
+    if (msg.includes('json') || msg.includes('position') || msg.includes('parse') || msg.includes('expected')) {
+      return 'The AI generated an invalid response format. Please try generating again.'
+    }
     if (e.message) return e.message
   }
   return 'AI service error. Please try again.'
+}
+
+/**
+ * Safely parses JSON by stripping potential markdown code blocks 
+ * that Gemini sometimes includes even with responseMimeType: 'application/json'
+ */
+function parseLLMResponse(text: string) {
+  let clean = text.trim()
+  if (clean.startsWith('```json')) clean = clean.substring(7)
+  else if (clean.startsWith('```')) clean = clean.substring(3)
+  
+  if (clean.endsWith('```')) clean = clean.substring(0, clean.length - 3)
+  
+  return JSON.parse(clean.trim())
 }
 
 export async function generateNotes(extractedText: string): Promise<{
@@ -67,7 +84,7 @@ ${extractedText.slice(0, 15000)}`
 
   const result = await model.generateContent(prompt)
   const text = result.response.text()
-  const parsed = JSON.parse(text)
+  const parsed = parseLLMResponse(text)
 
   return {
     summary: parsed.summary || '',
@@ -100,7 +117,7 @@ ${extractedText.slice(0, 12000)}`
 
   const result = await model.generateContent(prompt)
   const text = result.response.text()
-  const parsed = JSON.parse(text)
+  const parsed = parseLLMResponse(text)
 
   return {
     flashcards: parsed.flashcards || [],
@@ -148,7 +165,7 @@ ${extractedText.slice(0, 12000)}`
 
   const result = await model.generateContent(prompt)
   const text = result.response.text()
-  const parsed = JSON.parse(text)
+  const parsed = parseLLMResponse(text)
 
   return {
     questions: parsed.questions || [],

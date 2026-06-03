@@ -1,17 +1,9 @@
-let posthog: any = null
-
-if (typeof window !== 'undefined') {
-  try {
-    posthog = require('posthog-js').default || require('posthog-js')
-  } catch (err) {
-    console.error('Failed to load posthog-js on client:', err)
-  }
-}
+import posthog from 'posthog-js'
 
 let initialized = false
 
 export function initPostHog() {
-  if (typeof window === 'undefined' || !posthog) return
+  if (typeof window === 'undefined') return
   if (initialized) return
   if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return
 
@@ -29,7 +21,7 @@ export function initPostHog() {
 }
 
 export function identifyUser(userId: string, properties?: Record<string, unknown>) {
-  if (typeof window === 'undefined' || !posthog) return
+  if (typeof window === 'undefined') return
   try {
     posthog.identify(userId, properties)
   } catch (err) {
@@ -38,7 +30,7 @@ export function identifyUser(userId: string, properties?: Record<string, unknown
 }
 
 export function trackEvent(event: string, properties?: Record<string, unknown>) {
-  if (typeof window === 'undefined' || !posthog) return
+  if (typeof window === 'undefined') return
   try {
     posthog.capture(event, properties)
   } catch (err) {
@@ -47,7 +39,7 @@ export function trackEvent(event: string, properties?: Record<string, unknown>) 
 }
 
 export function resetUser() {
-  if (typeof window === 'undefined' || !posthog) return
+  if (typeof window === 'undefined') return
   try {
     posthog.reset()
   } catch (err) {

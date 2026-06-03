@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase/middleware'
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
           .createSignedUrl(upload.file_url!, 60)
 
         if (!signedUrl?.signedUrl || signedUrlError) {
-          console.error('[POST /ai/extract] createSignedUrl Error:', signedUrlError, upload.file_url)
+          logger.error('[POST /ai/extract] createSignedUrl Error:', signedUrlError, upload.file_url)
           throw new Error('Could not generate signed URL for file.')
         }
 
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
           // transcript_segments column may not exist yet — not fatal
         }
 
-        console.log(`[YouTube] Extracted ${transcriptItems.length} segments in lang="${usedLang}" for video ${upload.youtube_video_id}`)
+        logger.info(`[YouTube] Extracted ${transcriptItems.length} segments in lang="${usedLang}" for video ${upload.youtube_video_id}`)
 
         if (!extractedText || extractedText.trim().length < 50) {
           throw new Error('Could not extract transcript from this video.')
@@ -137,7 +138,7 @@ export async function POST(request: Request) {
           .createSignedUrl(upload.file_url!, 60)
 
         if (!signedUrl?.signedUrl || signedUrlError) {
-          console.error('[POST /ai/extract] createSignedUrl Error (Image):', signedUrlError)
+          logger.error('[POST /ai/extract] createSignedUrl Error (Image):', signedUrlError)
           throw new Error('Could not generate signed URL.')
         }
 
@@ -177,7 +178,7 @@ export async function POST(request: Request) {
       })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to process file.'
-      console.error('[POST /ai/extract]', errorMessage)
+      logger.error('[POST /ai/extract]', errorMessage)
 
       await supabase
         .from('uploads')

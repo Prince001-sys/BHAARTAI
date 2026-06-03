@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useChatStore } from '@/store/chatStore'
-import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatRelativeTime } from '@/lib/utils'
@@ -62,41 +61,41 @@ export function ChatInterface({ studySetId, studySetTitle }: ChatInterfaceProps)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    const initChat = async () => {
+      setLoading(true)
+      try {
+        const sessRes = await fetch(`/api/chat/sessions?studySetId=${studySetId}`)
+        const { data: sessions } = await sessRes.json()
+        
+        let chat = sessions?.[0]
+        if (!chat) {
+          const createRes = await fetch('/api/chat/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ studySetId, title: `Chat: ${studySetTitle}`, language }),
+          })
+          const { data } = await createRes.json()
+          chat = data
+        }
+
+        setCurrentChat(chat)
+
+        const msgRes = await fetch(`/api/chat/${chat.id}/messages`)
+        const { data: msgs } = await msgRes.json()
+        setMessages(msgs || [])
+      } catch {
+        console.error('Failed to init chat')
+      } finally {
+        setLoading(false)
+      }
+    }
+
     initChat()
-  }, [studySetId])
+  }, [studySetId, studySetTitle, language, setCurrentChat, setMessages])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
-
-  const initChat = async () => {
-    setLoading(true)
-    try {
-      const sessRes = await fetch(`/api/chat/sessions?studySetId=${studySetId}`)
-      const { data: sessions } = await sessRes.json()
-      
-      let chat = sessions?.[0]
-      if (!chat) {
-        const createRes = await fetch('/api/chat/sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ studySetId, title: `Chat: ${studySetTitle}`, language }),
-        })
-        const { data } = await createRes.json()
-        chat = data
-      }
-
-      setCurrentChat(chat)
-
-      const msgRes = await fetch(`/api/chat/${chat.id}/messages`)
-      const { data: msgs } = await msgRes.json()
-      setMessages(msgs || [])
-    } catch {
-      console.error('Failed to init chat')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const sendMessage = async () => {
     if (!input.trim() || !currentChat || isTyping) return

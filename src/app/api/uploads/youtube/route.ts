@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
 import { isValidYouTubeUrl, extractYouTubeVideoId } from '@/lib/utils'
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
       .single()
 
     if (uploadError || !upload) {
-      console.error('[POST /uploads/youtube]', uploadError)
+      logger.error('[POST /uploads/youtube]', uploadError)
       return NextResponse.json(
         { error: 'Something went wrong. Please try again later.' },
         { status: 500 }

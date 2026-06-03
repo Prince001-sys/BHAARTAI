@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
 
@@ -27,7 +28,7 @@ export async function GET(
           .createSignedUrl(data.upload.file_url, 3600) // 1 hour
         data.upload.signedUrl = urlData?.signedUrl || null
       } catch (err) {
-        console.error('Failed to create signed URL:', err)
+        logger.error('Failed to create signed URL:', err)
       }
     }
 

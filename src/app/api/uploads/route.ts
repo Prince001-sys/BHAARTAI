@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { withAuth, validateFileServer } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase/middleware'
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
       })
 
     if (storageError) {
-      console.error('[POST /uploads] Storage error:', storageError)
+      logger.error('[POST /uploads] Storage error:', storageError)
       return NextResponse.json(
         { error: 'Failed to upload file. Please try again.' },
         { status: 500 }
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
       .single()
 
     if (uploadError || !upload) {
-      console.error('[POST /uploads] DB error:', uploadError)
+      logger.error('[POST /uploads] DB error:', uploadError)
       return NextResponse.json(
         { error: 'Something went wrong. Please try again later.' },
         { status: 500 }
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
       .single()
 
     if (studySetError) {
-      console.error('[POST /uploads] Study set creation error:', studySetError)
+      logger.error('[POST /uploads] Study set creation error:', studySetError)
     }
 
     // Track analytics via proper server-side tracker (stubbed for now)

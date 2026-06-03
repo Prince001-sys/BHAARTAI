@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
 import { generateFlashcards, getOpenAIErrorMessage } from '@/lib/openai'
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ data: flashcards })
     } catch (err) {
       const errMsg = getOpenAIErrorMessage(err)
-      console.error('[POST /flashcards/generate]', errMsg, err)
+      logger.error('[POST /flashcards/generate]', errMsg, err)
       return NextResponse.json(
         { error: errMsg },
         { status: 503 }

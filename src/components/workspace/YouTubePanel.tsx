@@ -33,7 +33,6 @@ export function YouTubePanel({ upload, studySetTitle }: YouTubePanelProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const transcriptRef = useRef<HTMLDivElement>(null)
   const [currentTime, setCurrentTime] = useState(0)
-  const [activeIndex, setActiveIndex] = useState(-1)
   const [searchQuery, setSearchQuery] = useState('')
 
   // Parse stored transcript segments
@@ -67,21 +66,21 @@ export function YouTubePanel({ upload, studySetTitle }: YouTubePanelProps) {
     return () => window.removeEventListener('message', handler)
   }, [hasTimeline])
 
-  // Find active segment based on current time
+  // Derive active segment based on current time to avoid setting state in effect
+  const activeIndex = hasTimeline
+    ? segments.findIndex(
+        (seg, i) =>
+          currentTime >= seg.start &&
+          currentTime < (segments[i + 1]?.start ?? seg.start + seg.duration + 5)
+      )
+    : -1
+
+  // Auto-scroll the active segment into view when it changes
   useEffect(() => {
-    if (!hasTimeline) return
-    const idx = segments.findIndex(
-      (seg, i) =>
-        currentTime >= seg.start &&
-        currentTime < (segments[i + 1]?.start ?? seg.start + seg.duration + 5)
-    )
-    if (idx !== -1 && idx !== activeIndex) {
-      setActiveIndex(idx)
-      // Auto-scroll the active segment into view
-      const el = transcriptRef.current?.querySelector(`[data-idx="${idx}"]`)
-      el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-    }
-  }, [currentTime, segments, hasTimeline, activeIndex])
+    if (!hasTimeline || activeIndex === -1) return
+    const el = transcriptRef.current?.querySelector(`[data-idx="${activeIndex}"]`)
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [activeIndex, hasTimeline])
 
   // Seek YouTube player to a specific timestamp
   const seekTo = useCallback((seconds: number) => {
@@ -186,10 +185,10 @@ export function YouTubePanel({ upload, studySetTitle }: YouTubePanelProps) {
         <div ref={transcriptRef} className="flex-1 overflow-y-auto p-2">
           {hasTimeline ? (
             filteredSegments.length === 0 ? (
-              <p className="text-gray-600 text-xs text-center py-8">No results for "{searchQuery}"</p>
+              <p className="text-gray-600 text-xs text-center py-8">No results for &quot;{searchQuery}&quot;</p>
             ) : (
               <div className="space-y-0.5">
-                {filteredSegments.map((seg, i) => {
+                {filteredSegments.map((seg) => {
                   const realIdx = segments.indexOf(seg)
                   const isActive = realIdx === activeIndex
                   return (
@@ -198,7 +197,6 @@ export function YouTubePanel({ upload, studySetTitle }: YouTubePanelProps) {
                       data-idx={realIdx}
                       onClick={() => {
                         seekTo(seg.start)
-                        setActiveIndex(realIdx)
                       }}
                       className={`w-full text-left flex items-start gap-3 px-3 py-2 rounded-lg transition-all group ${
                         isActive

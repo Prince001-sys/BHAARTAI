@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
 import { generateQuiz } from '@/lib/openai'
@@ -117,7 +118,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ data: { quizId: quiz.id, totalQuestions: result.questions.length } })
     } catch (err) {
-      console.error('[POST /quiz/generate]', err)
+      logger.error('[POST /quiz/generate]', err)
       await serviceClient
         .from('quizzes')
         .update({ generation_status: 'failed' })

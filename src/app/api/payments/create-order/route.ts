@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
 import Razorpay from 'razorpay'
@@ -42,7 +43,7 @@ export async function POST() {
         },
       })
     } catch (err) {
-      console.error('[POST /payments/create-order]', err)
+      logger.error('[POST /payments/create-order]', err)
       return NextResponse.json(
         { error: 'Payment failed. No money has been charged.' },
         { status: 500 }

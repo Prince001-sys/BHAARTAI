@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, use } from 'react'
+import { useEffect, useState, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -31,11 +31,31 @@ export default function StudyWorkspacePage({ params }: StudyWorkspaceProps) {
   const [generatingFlashcards, setGeneratingFlashcards] = useState(false)
   const [activeTab, setActiveTab] = useState<'notes' | 'chat' | 'flashcards' | 'quiz'>('notes')
 
-  useEffect(() => {
-    loadStudySet()
-  }, [id])
+  const generateNotes = useCallback(async () => {
+    setGeneratingNotes(true)
+    try {
+      const res = await fetch('/api/ai/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studySetId: id }),
+      })
+      const { data, error } = await res.json()
+      if (error) throw new Error(error)
+      setNotes(data)
+      toast.success('Notes generated successfully!')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to generate notes'
+      if (msg.includes('upgradeRequired') || msg.includes('limit')) {
+        toast.error(msg, { action: { label: 'Upgrade', onClick: () => router.push('/pricing') } })
+      } else {
+        toast.error(msg)
+      }
+    } finally {
+      setGeneratingNotes(false)
+    }
+  }, [id, router])
 
-  const loadStudySet = async () => {
+  const loadStudySet = useCallback(async () => {
     try {
       const [ssRes, notesRes, flashRes] = await Promise.all([
         fetch(`/api/study-sets/${id}`),
@@ -65,31 +85,12 @@ export default function StudyWorkspacePage({ params }: StudyWorkspaceProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [id, router, generateNotes])
 
-  const generateNotes = async () => {
-    setGeneratingNotes(true)
-    try {
-      const res = await fetch('/api/ai/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studySetId: id }),
-      })
-      const { data, error } = await res.json()
-      if (error) throw new Error(error)
-      setNotes(data)
-      toast.success('Notes generated successfully!')
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to generate notes'
-      if (msg.includes('upgradeRequired') || msg.includes('limit')) {
-        toast.error(msg, { action: { label: 'Upgrade', onClick: () => router.push('/pricing') } })
-      } else {
-        toast.error(msg)
-      }
-    } finally {
-      setGeneratingNotes(false)
-    }
-  }
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadStudySet()
+  }, [loadStudySet])
 
   const generateFlashcards = async () => {
     setGeneratingFlashcards(true)
@@ -193,6 +194,7 @@ export default function StudyWorkspacePage({ params }: StudyWorkspaceProps) {
         {/* User Footer */}
         <div className="mt-auto pt-4 border-t border-white/10 flex items-center gap-3">
           {user?.avatar_url ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
             <img
               alt="Profile"
               className="w-10 h-10 rounded-full object-cover border border-white/20"
@@ -289,6 +291,7 @@ export default function StudyWorkspacePage({ params }: StudyWorkspaceProps) {
                 {upload?.file_type === 'image' && (
                   <div className="w-full h-full flex flex-col bg-[#121212] rounded-xl overflow-hidden border border-white/10 p-4 justify-center items-center">
                     {upload.signedUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={upload.signedUrl}
                         alt={studySet.title}
@@ -330,7 +333,7 @@ export default function StudyWorkspacePage({ params }: StudyWorkspaceProps) {
                 ].map((t) => (
                   <button
                     key={t.value}
-                    onClick={() => setActiveTab(t.value as any)}
+                    onClick={() => setActiveTab(t.value as 'notes' | 'chat' | 'flashcards' | 'quiz')}
                     className={`flex items-center gap-2 border-b-2 font-bold text-sm transition-all h-full ${
                       activeTab === t.value
                         ? 'border-white text-white'

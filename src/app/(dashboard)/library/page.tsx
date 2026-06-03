@@ -42,7 +42,7 @@ export default function LibraryPage() {
   }, [searchQuery])
 
   const fetchStudySets = useCallback(async () => {
-    setLoading(true)
+    setTimeout(() => setLoading(true), 0)
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -61,6 +61,7 @@ export default function LibraryPage() {
   }, [page, debouncedSearch, setStudySets])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStudySets()
   }, [fetchStudySets])
 

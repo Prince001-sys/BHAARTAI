@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
 
@@ -39,7 +40,7 @@ export async function PATCH(request: Request) {
       .single()
 
     if (error) {
-      console.error('[PATCH /users/profile]', error)
+      logger.error('[PATCH /users/profile]', error)
       return NextResponse.json(
         { error: 'Something went wrong. Please try again later.' },
         { status: 500 }

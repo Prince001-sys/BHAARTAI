@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
 import { generateNotes, getOpenAIErrorMessage } from '@/lib/openai'
@@ -132,7 +133,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ data: notes })
     } catch (err) {
       const errMsg = getOpenAIErrorMessage(err)
-      console.error('[POST /ai/notes]', errMsg, err)
+      logger.error('[POST /ai/notes]', errMsg, err)
       await serviceClient
         .from('ai_notes')
         .update({ generation_status: 'failed' })

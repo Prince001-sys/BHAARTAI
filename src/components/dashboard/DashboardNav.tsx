@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
@@ -17,15 +18,24 @@ export default function DashboardNav() {
 
   const handleSignOut = async () => {
     try {
-      const supabase = createClient()
-      await supabase.auth.signOut()
-    } catch (err) {
-      console.error('Logout error:', err)
-    } finally {
-      signOut()
-      resetUser()
-      toast.success('Signed out successfully.')
+      // 1. Sign out from Firebase
+      const { auth } = await import('@/lib/firebase/client')
+      if (auth) {
+        await auth.signOut()
+      }
+      
+      // 2. Clear server-side cookies
+      await fetch('/api/auth/logout', { method: 'POST' })
+      
+      // 3. Clear client-side cookie
+      if (typeof document !== 'undefined') {
+        document.cookie = 'sb-custom-jwt=; Max-Age=0; path=/; domain=' + window.location.hostname
+      }
+
+      toast.success('Signed out successfully')
       window.location.href = '/login'
+    } catch (error) {
+      toast.error('Failed to sign out')
     }
   }
 
@@ -125,8 +135,10 @@ export default function DashboardNav() {
         <div className="mt-auto pt-6 border-t border-white/10">
           <div className="flex items-center gap-3 mb-6">
             {user?.avatar_url ? (
-              <img
+              <Image
                 alt="Profile"
+                width={40}
+                height={40}
                 className="w-10 h-10 rounded-full object-cover border border-white/20"
                 src={user.avatar_url}
               />

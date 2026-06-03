@@ -8,8 +8,7 @@ interface FlashcardViewerProps {
   flashcards: Flashcard[]
   isGenerating: boolean
   isProcessing: boolean
-  onGenerate: () => void
-  onFlashcardsUpdate: (cards: Flashcard[]) => void
+  onGenerate?: () => void
 }
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -23,7 +22,6 @@ export function FlashcardViewer({
   isGenerating,
   isProcessing,
   onGenerate,
-  onFlashcardsUpdate,
 }: FlashcardViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)

@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
-import { chatWithAI } from '@/lib/openai'
-import { createServiceClient } from '@/lib/supabase/middleware'
-import { checkAiQuestionLimit } from '@/lib/limits'
-import { checkRateLimit } from '@/lib/rateLimit'
-import { analytics } from '@/lib/posthog'
 
 // POST /api/chat/sessions — create or get chat session
 export async function POST(request: Request) {
