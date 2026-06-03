@@ -2,21 +2,9 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-
-  // Protected routes
-  const protectedRoutes = ['/dashboard', '/upload', '/library', '/study', '/pricing', '/profile']
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
-
-  if (isProtectedRoute) {
-    const token = request.cookies.get('sb-custom-jwt')?.value
-    if (!token) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      return NextResponse.redirect(url)
-    }
-  }
-
+  // Auth protection is handled at the page/component level via AuthProvider and useAuthStore.
+  // The middleware simply passes all requests through to avoid cookie timing issues
+  // that occur on Vercel Edge where server-side cookie checks run before client JS executes.
   return NextResponse.next()
 }
 

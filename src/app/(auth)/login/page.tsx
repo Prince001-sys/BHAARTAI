@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { auth } from '@/lib/firebase/client'
 import { 
@@ -17,6 +18,7 @@ function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
   const searchParams = useSearchParams()
 
   useEffect(() => {
@@ -60,7 +62,7 @@ function LoginForm() {
       
       await establishSession(idToken)
       toast.success('Successfully signed in with Google!')
-      window.location.href = '/dashboard'
+      router.push('/dashboard')
     } catch (err: any) {
       toast.error(err.message || 'Google sign-in failed. Please try again.')
       setIsLoading(false)
@@ -91,7 +93,7 @@ function LoginForm() {
         
         await establishSession(idToken)
         toast.success('Sign up successful!')
-        window.location.href = '/dashboard'
+        router.push('/dashboard')
       } else {
         // Sign In with Firebase
         const userCredential = await signInWithEmailAndPassword(auth, email, password)
@@ -99,7 +101,7 @@ function LoginForm() {
         
         await establishSession(idToken)
         toast.success('Successfully signed in!')
-        window.location.href = '/dashboard'
+        router.push('/dashboard')
       }
     } catch (err: any) {
       // Firebase throws errors like 'auth/user-not-found'

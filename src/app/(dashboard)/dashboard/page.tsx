@@ -16,10 +16,17 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 export default function DashboardPage() {
-  const { user } = useAuthStore()
+  const { user, isLoading } = useAuthStore()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+
+  // Auth guard — redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/login')
+    }
+  }, [user, isLoading, router])
 
   useEffect(() => {
     fetch('/api/dashboard/stats')
