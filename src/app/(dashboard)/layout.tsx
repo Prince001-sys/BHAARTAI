@@ -1,17 +1,19 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import DashboardNav from '@/components/dashboard/DashboardNav'
+import { cookies } from 'next/headers'
 
 export const metadata: Metadata = {
   title: 'Dashboard — StudyFlow AI',
 }
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const cookieStore = await cookies()
+  const token = cookieStore.get('sb-custom-jwt')?.value
 
-  if (!user) redirect('/login')
+  if (!token) {
+    redirect('/login')
+  }
 
   return (
     <div className="min-h-screen bg-[#121212] font-body-base text-white">
@@ -22,3 +24,4 @@ export default async function DashboardLayout({ children }: { children: React.Re
     </div>
   )
 }
+
