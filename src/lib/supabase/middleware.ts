@@ -26,8 +26,9 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Refresh session — do not remove this
-  const { data: { user } } = await supabase.auth.getUser()
+  // Check custom JWT cookie instead of default Supabase session
+  const token = request.cookies.get('sb-custom-jwt')?.value
+  const user = token ? true : null // Basic presence check for routing, validation happens in layout/pages
 
   const { pathname } = request.nextUrl
 
